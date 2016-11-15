@@ -168,16 +168,23 @@ void eval(char *cmdline)
     char *argv[MAXARGS];
     int bg = parseline(cmdline, argv);
     pid_t pid;
+    struct job_t *job;
 
 	if (!builtin_cmd(argv)) {
-		if (fork() == 0) {
+		if ((pid = fork()) == 0) {
 			// we are in the child, woohoo!
 			execvp(argv[0], argv);
 			printf("%s: Command not found\n", argv[0]);
 			exit(0);
 		}
+		addjob(jobs, pid, bg ? BG : FG, cmdline);
 		if (!bg) {
-			wait(NULL);
+			waitfg(pid);
+		}
+		else{
+			//print a status message
+			job=getjobpid(jobs, pid);
+			printf("[%d] (%d) %s", job->jid, job->pid,cmdline);
 		}
 	}
 
@@ -247,17 +254,18 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
-	if (!strcmp(argv[0],"quit")) {
+	if (strcmp(argv[0],"quit") == 0) {
 		exit(0);
 	}
 
 	else if (!strcmp(argv[0],"bg") || !strcmp(argv[0],"fg")) {
-		do_bgfg(argv);
+		do_bgfg(argv);		
 		return 1;
 	}
 
 	else if (!strcmp(argv[0],"jobs")) {
-		listjobs(jobs);
+		// handle jobs
+		listjobs(jobs);//line for test05
 		return 1;
 	}
 	return 0;     /* not a builtin command */
@@ -276,6 +284,10 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+	struct job_t *job =getjobpid(jobs, pid);
+	while(job->state == FG){
+		sleep(1);
+	}
     return;
 }
 
@@ -292,6 +304,13 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+	pid_t pid;
+	int status;
+	struct job_t *job;
+	while((pid = waitpid(-1, &status, WNOHANG))>0){
+		//job=getjobpid(jobs,pid);
+		deletejob(jobs,pid);//reaping the child
+	}
     return;
 }
 
@@ -533,3 +552,4 @@ void sigquit_handler(int sig)
     printf("Terminating after receipt of SIGQUIT signal\n");
     exit(1);
 }
+
