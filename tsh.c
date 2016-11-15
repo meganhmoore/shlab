@@ -328,7 +328,17 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
-    return;
+    pid_t pid = fgpid(jobs);
+
+    if (pid != 0) {
+        kill(-pid, SIGINT);
+        if (sig > 0) {  
+            printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, sig);  
+            deletejob(jobs, pid);  
+        }  
+    }
+
+	return;
 }
 
 /*
