@@ -189,15 +189,11 @@ void eval(char *cmdline)
         }
     }
     
-    if (!addjob(jobs, pid, bg? BG: FG, cmdline)) { // add to the jobs list
-        app_error("addjob in eval");
-    }
+    addjob(jobs, pid, bg? BG: FG, cmdline)); // add job to the list
 
     if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0) unix_error("Sigprocmask error"); //unblock signal
 
-    if (bg) {
-        printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
-    }
+    if (bg) printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
 
     waitfg(pid);
     
@@ -235,19 +231,19 @@ int parseline(const char *cmdline, char **argv)
     }
 
     while (delim) {
-	argv[argc++] = buf;
-	*delim = '\0';
-	buf = delim + 1;
-	while (*buf && (*buf == ' ')) /* ignore spaces */
-	       buf++;
+		argv[argc++] = buf;
+		*delim = '\0';
+		buf = delim + 1;
+		while (*buf && (*buf == ' ')) /* ignore spaces */
+			   buf++;
 
-	if (*buf == '\'') {
-	    buf++;
-	    delim = strchr(buf, '\'');
-	}
-	else {
-	    delim = strchr(buf, ' ');
-	}
+		if (*buf == '\'') {
+			buf++;
+			delim = strchr(buf, '\'');
+		}
+		else {
+			delim = strchr(buf, ' ');
+		}
     }
     argv[argc] = NULL;
     
@@ -277,7 +273,6 @@ int builtin_cmd(char **argv)
 	}
 
 	else if (!strcmp(argv[0],"jobs")) {
-		// handle jobs
 		listjobs(jobs);//line for test05
 		return 1;
 	}
@@ -297,8 +292,7 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-	struct job_t *job =getjobpid(jobs, pid);
-	while(job->state == FG){
+	while(pid == fgpid(jobs)) {
 		sleep(1);
 	}
     return;
