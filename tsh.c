@@ -168,26 +168,39 @@ void eval(char *cmdline)
     char *argv[MAXARGS];
     int bg = parseline(cmdline, argv);
     pid_t pid;
-    struct job_t *job;
+    sigset_t mask;
 
-	if (!builtin_cmd(argv)) {
-		if ((pid = fork()) == 0) {
-			// we are in the child, woohoo!
-			execvp(argv[0], argv);
-			printf("%s: Command not found\n", argv[0]);
-			exit(0);
-		}
-		addjob(jobs, pid, bg ? BG : FG, cmdline);
-		if (!bg) {
-			waitfg(pid);
-		}
-		else{
-			//print a status message
-			job=getjobpid(jobs, pid);
-			printf("[%d] (%d) %s", job->jid, job->pid,cmdline);
-		}
-	}
+    if (!argv[0] || builtin_cmd(argv)) {
+        return;
+    }
+    
+    if (sigemptyset(&mask) < 0) unix_error("Sigemptyset error"); // initialize set
+    if (sigaddset(&mask, SIGCHLD) < 0) unix_error("Sigaddset error"); // add SIGCHLD to set
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) unix_error("Sigprocmask error"); //add signals to blocked
 
+    if ((pid = fork()) == 0) {
+        // we are in the child, woohoo!
+        setpgid(0, 0);
+        if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0) unix_error("Sigprocmask error"); // unblock signal
+
+        if (execve(argv[0], argv, environ) < 0) {
+            printf("%.*s: Command not found\n", strlen(cmdline) - 1,cmdline);
+            exit(0);
+        }
+    }
+    
+    if (!addjob(jobs, pid, bg? BG: FG, cmdline)) { // add to the jobs list
+        app_error("addjob in eval");
+    }
+
+    if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0) unix_error("Sigprocmask error"); //unblock signal
+
+    if (bg) {
+        printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
+    }
+
+    waitfg(pid);
+    
     return;
 }
 
