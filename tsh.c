@@ -1,7 +1,7 @@
 /* 
  * tsh - A tiny shell program with job control
  * 
- * <Megan Moore mm7148 and Peter Chen>
+ * <Megan Moore mm7148 and Peter Chen wc1126>
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -347,6 +347,13 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+    pid_t pid = fgid(jobs);
+
+    if (pid != 0) {
+        printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, sig);
+        getjobpid(jobs, pid)->state = ST;
+        kill(-pid, SIGTSTP);
+    }
     return;
 }
 
