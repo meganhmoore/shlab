@@ -365,11 +365,10 @@ void sigchld_handler(int sig)
     if (verbose) printf("sigchld_handler: entering\n");
     pid_t pid;
     int status;
-    int jobid;
 
     while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
 		if (WIFSIGNALED(status)) {
-			sigint_handler(-2);
+			sigint_handler(2);
 		}
 		else if (WIFSTOPPED(status)) {
 			sigtstp_handler(20);
@@ -390,13 +389,14 @@ void sigchld_handler(int sig)
 void sigint_handler(int sig) 
 {
     pid_t pid = fgpid(jobs);
-	int status;
 
     if (pid != 0) {
         kill(-pid, SIGINT);
-        if (sig > 0) {  
-            printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, sig);  
-            deletejob(jobs, pid);  
+        if (sig > 0) {
+			if (pid2jid(pid) != 0) {  
+            	printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, sig);  
+            	deletejob(jobs, pid);
+			}
         }  
     }
 
@@ -412,7 +412,6 @@ void sigtstp_handler(int sig)
 {
     pid_t pid;
     pid = fgpid(jobs);
-	int status;
 
     if (pid != 0) {
         printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, sig);
