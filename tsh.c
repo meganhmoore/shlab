@@ -170,14 +170,14 @@ void eval(char *cmdline)
     pid_t pid;
     sigset_t mask;
 
-    if (!argv[0] || builtin_cmd(argv)) {
-        return;
-    }
-    
+    if (!argv[0] || builtin_cmd(argv)){
+	return;
+    } 
     if (sigemptyset(&mask) < 0) unix_error("Sigemptyset error"); // initialize set
     if (sigaddset(&mask, SIGCHLD) < 0) unix_error("Sigaddset error"); // add SIGCHLD to set
-    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) unix_error("Sigprocmask error"); //add signals to blocked
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) unix_error("Sigprocmask error"); //add signals to blocked	
 
+ 
     if ((pid = fork()) == 0) {
         // we are in the child, woohoo!
         setpgid(0, 0); // make sure that SIGINT is only sent to the foreground process
@@ -196,7 +196,7 @@ void eval(char *cmdline)
     if (bg) printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
 
     waitfg(pid);
-    
+
     return;
 }
 
@@ -264,7 +264,7 @@ int parseline(const char *cmdline, char **argv)
 int builtin_cmd(char **argv) 
 {
 	// quit
-    if (strcmp(argv[0],"quit") == 0) {
+    if (!strcmp(argv[0],"quit")) {
         exit(0);
     }
 	// bg or fg
@@ -274,8 +274,10 @@ int builtin_cmd(char **argv)
     }
 	// jobs
     else if (!strcmp(argv[0],"jobs")) {
-        listjobs(jobs);//line for test05
+        listjobs(jobs);
         return 1;
+    }else if(!strcmp("&",argv[0])){
+	return 1;
     }
     return 0;     /* not a builtin command */
 }
@@ -319,7 +321,7 @@ void do_bgfg(char **argv)
 
     // Continue signal
     if (job->state == ST) {
-        if (kill(-job->pid, SIGCONT) < 0) {
+        if (kill(-(job->pid), SIGCONT) < 0) {
             unix_error("kill error");
         }
     }
@@ -329,11 +331,11 @@ void do_bgfg(char **argv)
     if (job->state == FG) {
         waitfg(job->pid);
     }
-    else {
+    else{
         printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
     }
 
-    return;
+    return; 
 }
 
 /* 
@@ -342,9 +344,9 @@ void do_bgfg(char **argv)
 void waitfg(pid_t pid)
 {
     while(pid == fgpid(jobs)) {
-        sleep(1);
+        sleep(0);
     }
-    return;
+    
 }
 
 /*****************
@@ -367,7 +369,7 @@ void sigchld_handler(int sig)
 
     while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
 		if (WIFSIGNALED(status)) {
-			sigint_handler(2);
+			sigint_handler(-2);
 		}
 		else if (WIFSTOPPED(status)) {
 			sigtstp_handler(20);
