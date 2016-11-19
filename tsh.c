@@ -365,19 +365,16 @@ void sigchld_handler(int sig)
     int status;
     int jobid;
 
-    while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED))>0){
-        jobid=pid2jid(pid);
-        if(WIFEXITED(status)){
-            deletejob(jobs,pid);// reaping the child
-    	    if(verbose)printf("sigchld_handler: Job [%d] (%d) deleted\n", jobid,(int)pid);
-	    if(verbose)printf("sigchld_handler: Job [%d] (%d) terminates OK (status %d)\n",jobid,(int) pid, WEXITSTATUS(status));
-	}
-	else if(WIFSIGNALED(status)){
-	    sigint_handler(2);
-	}
-	else if(WIFSTOPPED(status)){
-	    sigtstp_handler(20);
-	}
+    while((pid = waitpid(fgpid(jobs), &status, WNOHANG|WUNTRACED)) > 0){
+		if (WIFSIGNALED(status)) {
+			sigint_handler(2);
+		}
+		else if (WIFSTOPPED(status)) {
+			sigtstp_handler(20);
+		}
+		else if (WIFEXITED(status)) {
+			deletejob(jobs, pid);
+		}
     }
     if(verbose) printf("sigchld_handler: exiting\n");
     return;
