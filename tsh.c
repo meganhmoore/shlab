@@ -365,7 +365,7 @@ void sigchld_handler(int sig)
     int status;
     int jobid;
 
-    while((pid = waitpid(fgpid(jobs), &status, WNOHANG|WUNTRACED)) > 0){
+    while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
 		if (WIFSIGNALED(status)) {
 			sigint_handler(2);
 		}
