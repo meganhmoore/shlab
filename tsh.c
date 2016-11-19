@@ -180,7 +180,7 @@ void eval(char *cmdline)
 
     if ((pid = fork()) == 0) {
         // we are in the child, woohoo!
-        setpgid(0, 0);
+        setpgid(0, 0); // make sure that SIGINT is only sent to the foreground process
         if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0) unix_error("Sigprocmask error"); // unblock signal
 
         if (execve(argv[0], argv, environ) < 0) {
@@ -191,7 +191,7 @@ void eval(char *cmdline)
     
     addjob(jobs, pid, bg? BG: FG, cmdline); // add job to the list
 
-    if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0) unix_error("Sigprocmask error"); //unblock signal
+    if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0) unix_error("Sigprocmask error"); // unblock signal
 
     if (bg) printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
 
@@ -263,15 +263,16 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+	// quit
     if (strcmp(argv[0],"quit") == 0) {
         exit(0);
     }
-
+	// bg or fg
     else if (!strcmp(argv[0],"bg") || !strcmp(argv[0],"fg")) {
         do_bgfg(argv);      
         return 1;
     }
-
+	// jobs
     else if (!strcmp(argv[0],"jobs")) {
         listjobs(jobs);//line for test05
         return 1;
@@ -288,6 +289,7 @@ void do_bgfg(char **argv)
     int state_cmd = (!strcmp(argv[0], "bg")) ? BG : FG;
     char *id = argv[1];
    
+	// no argument is found
     if(id == NULL) {
 	printf("%s command requires PID  or %%jobid argument\n", argv[0]);
 	return;
@@ -309,6 +311,7 @@ void do_bgfg(char **argv)
             return;
         }
     }
+	// invalid input
     else {
         printf("%s: argument must be a PID or %%jobid\n", argv[0]);
         return;
@@ -322,7 +325,7 @@ void do_bgfg(char **argv)
     }
     // assign the new state
     job->state = state_cmd;
-
+	// fg and bg
     if (job->state == FG) {
         waitfg(job->pid);
     }
@@ -365,7 +368,7 @@ void sigchld_handler(int sig)
     while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED))>0){
         jobid=pid2jid(pid);
         if(WIFEXITED(status)){
-            deletejob(jobs,pid);//reaping the child
+            deletejob(jobs,pid);// reaping the child
     	    if(verbose)printf("sigchld_handler: Job[%d](%d)deleted\n", jobid,(int)pid);
 	    if(verbose)printf("sigchld_handler: Job[%d](%d)terminates OK (status %d)\n",jobid,(int) pid, WEXITSTATUS(status));
 	}
@@ -379,7 +382,7 @@ void sigchld_handler(int sig)
 	    printf("Job[%d](%d)stopped by signal %d\n",jobid,(int)pid,WSTOPSIG(status));
 	}
     }
-    if(verbose) printf("sigchld_handler: exiting|n");
+    if(verbose) printf("sigchld_handler: exiting\n");
     return;
 }
 
@@ -415,9 +418,10 @@ void sigtstp_handler(int sig)
 
     if (pid != 0) {
         printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, sig);
-        getjobpid(jobs, pid)->state = ST;
+        getjobpid(jobs, pid)->state = ST; // change the job state to stopped
         kill(-pid, SIGTSTP);
     }
+	
     return;
 }
 
